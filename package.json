@@ -12,7 +12,7 @@
     "coloring",
     "adclours"
   ],
-  "license": "ISC",
+  "license": "MIT",
   "author": "Smart Tell Line",
   "type": "module",
   "main": "adclours.mjs",
