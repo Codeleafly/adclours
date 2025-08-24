@@ -447,6 +447,15 @@ log.debug('This is a debug message.');
 delete process.env.DEBUG; // Clean up
 ```
 
+## License and Terms
+
+`adclours` is an open-source project developed by **Smart Tell Line**. It is licensed under the **MIT License**.
+
+*   The full text of the MIT License can be found in the [`LICENSE`](./LICENSE) file.
+*   Additional terms and conditions are detailed in the [`TERMS_AND_CONDITIONS.md`](./TERMS_AND_CONDITIONS.md) file.
+
+We encourage contributions and feedback from the community to make `adclours` even better!
+
 ## Installation
 
 `adclours` is available as a package on npm. You can install it using your preferred package manager:
