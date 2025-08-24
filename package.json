@@ -1,6 +1,6 @@
 {
   "name": "adclours",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "A powerful and lightweight advanced CLI coloring tool built with pure Node.js. This module offers efficient and fast terminal output coloring without external dependencies.",
   "keywords": [
     "cli",

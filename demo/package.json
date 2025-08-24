@@ -7,9 +7,10 @@
   "type": "module",
   "main": "demo.mjs",
   "scripts": {
-    "test": "node demo.mjs"
-  },
-  "dependencies": {
-    "adclours": "^2.0.3"
+    "test": "node demo.mjs",
+    "demo:tic": "node demo-tic-tac-toe.mjs",
+    "demo:snake": "node snake-demo.mjs",
+    "demo:quiz": "node demo-Quiz.mjs",
+    "demo:basic": "node demo.mjs"
   }
 }
