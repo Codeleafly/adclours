@@ -4,6 +4,44 @@
 
 ## Features
 
+This section provides a detailed overview of all the features available in `adclours.mjs`, categorized for easy navigation.
+
+### Table of Contents
+
+*   [1. Chainable Styling API (`color` object)](#1-chainable-styling-api-color-object)
+    *   [Basic Usage](#basic-usage)
+    *   [Available Styles](#available-styles)
+    *   [Basic Foreground Colors](#basic-foreground-colors)
+    *   [Bright/Hi-intensity Foreground Colors](#brighthi-intensity-foreground-colors)
+    *   [Basic Background Colors](#basic-background-colors)
+    *   [Bright/Hi-intensity Background Colors](#brighthi-intensity-background-colors)
+*   [2. Advanced Color Support](#2-advanced-color-support)
+    *   [RGB Colors (24-bit True Color)](#rgb-colors-24-bit-true-color)
+    *   [HEX Colors](#hex-colors)
+    *   [256-Color Palette](#256-color-palette)
+    *   [Extended Named Colors (Over 50!)](#extended-named-colors-over-50)
+*   [3. Text Effects and Utilities](#3-text-effects-and-utilities)
+    *   [`strip(text)`](#striptext)
+    *   [`rainbow(text)`](#rainbowtext)
+    *   [`gradient(text, startHex, endHex)`](#gradienttext-starthex-endhex)
+    *   [`progressBar(value, total, options)`](#progressbarvalue-total-options)
+    *   [`box(text, options)`](#boxtext-options)
+    *   [`center(text, width)`](#centertext-width)
+    *   [`wrap(text, width)`](#wraptext-width)
+    *   [`asciiArt(text)`](#asciiarttext)
+    *   [`pad(text, width, side, char)`](#padtext-width-side-char)
+    *   [`table(rows, options)`](#tablerows-options)
+    *   [`line(width, text)`](#linewidth-text)
+    *   [`title(title, subtitle, width)`](#titletitle-subtitle-width)
+    *   [`list(items, options)`](#listitems-options)
+    *   [`blend(text, color1, color2, ratio, mode)`](#blendtext-color1-color2-ratio-mode)
+    *   [`generateShades(baseColor, count, direction)`](#generateshadesbasecolor-count-direction)
+    *   [`findNearestColor(inputColor)`](#findnearestcolorinputcolor)
+*   [4. Advanced Components](#4-advanced-components)
+    *   [`Spinner` Class](#spinner-class)
+    *   [`animate(text, options)`](#animatetext-options)
+*   [5. Structured Logging System (`log` object)](#5-structured-logging-system-log-object)
+
 ### 1. Chainable Styling API (`color` object)
 
 The core of `adclours.mjs` is the `color` object, which provides a highly intuitive and chainable API for applying styles and colors. You can combine multiple styles and colors seamlessly.
