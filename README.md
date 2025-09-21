@@ -633,3 +633,5 @@ async function runDemo() {
 }
 
 runDemo();
+```
+Listen carefully developers. This module is cross platform and cross run time, meaning it can be used without error in nodejs, deno, and Typescript. The URL to use or a import  it in deno is https://cdn.jsdelivr.net/npm/adclours@latest/adclours.mjs
