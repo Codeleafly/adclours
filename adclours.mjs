@@ -1,10 +1,43 @@
-// adclours.mjs
+// adcolors.mjs
 /**
  * @fileoverview A highly powerful, comprehensive, and chainable module for coloring terminal text.
  * This module uses a Proxy to create a fluent, chainable API. It includes over 50 features.
  * @author Smart Tell Line
  * @license Open Source
  */
+
+// --- Deno/Node.js Compatibility Layer ---
+const isDeno = typeof Deno !== 'undefined';
+
+// ANSI escape code for cursor visibility
+const hideCursor = '\x1b[?25l';
+const showCursor = '\x1b[?25h';
+
+/**
+ * An abstraction layer for writing to stdout, compatible with Node.js and Deno.
+ * @param {string} str - The string to write.
+ */
+const writeToStdout = (str) => {
+  if (isDeno) {
+    Deno.stdout.writeSync(new TextEncoder().encode(str));
+  } else {
+    process.stdout.write(str);
+  }
+};
+
+/**
+ * An abstraction for setting up a listener for process exit, compatible with Node.js and Deno.
+ * @param {function} callback - The function to call on exit.
+ */
+const onExit = (callback) => {
+  if (isDeno) {
+    Deno.addSignalListener("SIGINT", callback);
+    // Deno doesn't have a direct 'exit' listener, so we rely on SIGINT or try...finally for cleanups.
+  } else {
+    process.on('exit', callback);
+    process.on('SIGINT', callback);
+  }
+};
 
 const styleCodes = {
   // Styles and Reset Codes
@@ -60,7 +93,30 @@ const styleCodes = {
 };
 
 /**
- * Extended color list for convenience. Over 50 colors.
+ * A more accurate mapping of basic ANSI colors to their standard hex values.
+ * This resolves the inconsistency in the original code.
+ */
+const ansiHexMapping = {
+    black: '#000000',
+    red: '#CD0000',
+    green: '#00CD00',
+    yellow: '#CDCD00',
+    blue: '#0000CD',
+    magenta: '#CD00CD',
+    cyan: '#00CDCD',
+    white: '#E5E5E5',
+    gray: '#808080',
+    brightRed: '#FF0000',
+    brightGreen: '#00FF00',
+    brightYellow: '#FFFF00',
+    brightBlue: '#0000FF',
+    brightMagenta: '#FF00FF',
+    brightCyan: '#00FFFF',
+    brightWhite: '#FFFFFF'
+};
+
+/**
+ * Extended named colors for convenience. Over 50 colors.
  */
 const extendedColors = {
   // Named Colors
@@ -129,24 +185,10 @@ const extendedColors = {
 };
 
 // Combine all named colors into a single map for easier lookup.
+// We prioritize ANSI hex codes for consistency with the styleCodes object.
 const allNamedColors = {
   ...extendedColors,
-  black: '#000000',
-  red: '#FF0000',
-  green: '#008000',
-  yellow: '#FFFF00',
-  blue: '#0000FF',
-  magenta: '#FF00FF',
-  cyan: '#00FFFF',
-  white: '#FFFFFF',
-  gray: '#808080',
-  brightRed: '#FF0000',
-  brightGreen: '#00FF00',
-  brightYellow: '#FFFF00',
-  brightBlue: '#0000FF',
-  brightMagenta: '#FF00FF',
-  brightCyan: '#00FFFF',
-  brightWhite: '#FFFFFF'
+  ...ansiHexMapping,
 };
 
 /**
@@ -182,6 +224,40 @@ const asciiFont = {
 const ansiRegex = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 
 /**
+ * Parses a color input (name, hex, or rgb tuple) into an RGB array.
+ * @private
+ * @param {string|number[]} c - The color to parse.
+ * @returns {number[]} The [r, g, b] array.
+ */
+function toRgb(c) {
+  if (typeof c === 'string') {
+    // Check if it's a named color first
+    const namedColorHex = allNamedColors[c];
+    if (namedColorHex) {
+      c = namedColorHex;
+    }
+    // Handle hex string
+    if (c.startsWith('#')) {
+      const sanitizedHex = c.slice(1);
+      if (sanitizedHex.length === 3) {
+        const [r, g, b] = sanitizedHex.split('').map(h => parseInt(h.repeat(2), 16));
+        return [r, g, b];
+      }
+      const hexMatch = sanitizedHex.match(/\w{2}/g);
+      if (hexMatch && hexMatch.length === 3) {
+        return hexMatch.map(h => parseInt(h, 16));
+      }
+    }
+  }
+  // Handle array of numbers
+  if (Array.isArray(c) && c.length === 3) {
+    return c;
+  }
+  // Default to black for invalid input
+  return [0, 0, 0];
+}
+
+/**
  * Creates a new style object with a given ANSI code prefix.
  * This function is the core of the chainable API, using a Proxy.
  *
@@ -215,6 +291,9 @@ function createStyleObject(prefix = "") {
         if (prop === "hex") {
           return (hex) => {
             const sanitizedHex = hex.startsWith('#') ? hex.slice(1) : hex;
+            if (!/^[0-9A-Fa-f]{6}$/.test(sanitizedHex)) {
+              throw new Error("Invalid hex code. Must be 6 digits.");
+            }
             const [r, g, b] = sanitizedHex.match(/\w{2}/g).map(h => parseInt(h, 16));
             const hexPrefix = `\x1b[38;2;${r};${g};${b}m`;
             return createStyleObject(prefix + hexPrefix);
@@ -223,6 +302,9 @@ function createStyleObject(prefix = "") {
         if (prop === "bgHex") {
           return (hex) => {
             const sanitizedHex = hex.startsWith('#') ? hex.slice(1) : hex;
+            if (!/^[0-9A-Fa-f]{6}$/.test(sanitizedHex)) {
+                throw new Error("Invalid hex code. Must be 6 digits.");
+            }
             const [r, g, b] = sanitizedHex.match(/\w{2}/g).map(h => parseInt(h, 16));
             const bgHexPrefix = `\x1b[48;2;${r};${g};${b}m`;
             return createStyleObject(prefix + bgHexPrefix);
@@ -247,16 +329,16 @@ function createStyleObject(prefix = "") {
 
         // --- Styles and Basic Colors ---
         
-        // If the property is a known style or extended color, add it to the prefix
+        // If the property is a known style or a basic ANSI color, add it to the prefix
         if (styleCodes[prop]) {
           const newPrefix = prefix + styleCodes[prop];
           return createStyleObject(newPrefix);
         }
 
-        if (allNamedColors[prop]) {
-          const hex = allNamedColors[prop];
-          const sanitizedHex = hex.startsWith('#') ? hex.slice(1) : hex;
-          const [r, g, b] = sanitizedHex.match(/\w{2}/g).map(h => parseInt(h, 16));
+        // If the property is an extended named color, use its HEX value
+        if (extendedColors[prop]) {
+          const hex = extendedColors[prop];
+          const [r, g, b] = toRgb(hex);
           const hexPrefix = `\x1b[38;2;${r};${g};${b}m`;
           return createStyleObject(prefix + hexPrefix);
         }
@@ -269,40 +351,6 @@ function createStyleObject(prefix = "") {
 }
 
 const color = createStyleObject();
-
-/**
- * Parses a color input (name, hex, or rgb tuple) into an RGB array.
- * @private
- * @param {string|number[]} c - The color to parse.
- * @returns {number[]} The [r, g, b] array.
- */
-function toRgb(c) {
-  if (typeof c === 'string') {
-    // Check if it's a named color first
-    const namedColorHex = allNamedColors[c];
-    if (namedColorHex) {
-        c = namedColorHex;
-    }
-    // Handle hex string
-    if (c.startsWith('#')) {
-      const sanitizedHex = c.slice(1);
-      if (sanitizedHex.length === 3) { // Handle shorthand hex codes like #F00
-        const [r, g, b] = sanitizedHex.split('').map(h => parseInt(h.repeat(2), 16));
-        return [r, g, b];
-      }
-      const hexMatch = sanitizedHex.match(/\w{2}/g);
-      if (hexMatch && hexMatch.length === 3) {
-        return hexMatch.map(h => parseInt(h, 16));
-      }
-    }
-  }
-  // Handle array of numbers
-  if (Array.isArray(c) && c.length === 3) {
-    return c;
-  }
-  // Default to black for invalid input
-  return [0, 0, 0];
-}
 
 /**
  * Blends two colors together based on a ratio and a blending mode.
@@ -408,12 +456,8 @@ function rainbow(text) {
  * @returns {string} The gradient-colored string.
  */
 function gradient(text, startHex, endHex) {
-  const startR = parseInt(startHex.slice(1, 3), 16);
-  const startG = parseInt(startHex.slice(3, 5), 16);
-  const startB = parseInt(startHex.slice(5, 7), 16);
-  const endR = parseInt(endHex.slice(1, 3), 16);
-  const endG = parseInt(endHex.slice(3, 5), 16);
-  const endB = parseInt(endHex.slice(5, 7), 16);
+  const [startR, startG, startB] = toRgb(startHex);
+  const [endR, endG, endB] = toRgb(endHex);
 
   const length = text.length;
   return text.split('').map((char, i) => {
@@ -465,15 +509,17 @@ function progressBar(value, total, options = {}) {
  */
 function box(text, options = {}) {
   const { borderColor = 'white', style = 'single', padding = 1 } = options;
-  const [topLeft, horizontal, topRight, vertical, bottomLeft, bottomRight] = boxStyles[style];
+  const boxStyle = boxStyles[style] || boxStyles.single;
+  const [topLeft, horizontal, topRight, vertical, bottomLeft, bottomRight] = boxStyle;
   
   const [r, g, b] = toRgb(borderColor);
   const borderCls = color.rgb(r, g, b);
 
   const lines = text.split('\n');
   const maxLen = lines.reduce((max, line) => Math.max(max, strip(line).length), 0);
-  const borderTop = borderCls(topLeft + horizontal.repeat(maxLen + 2 + padding * 2) + topRight);
-  const borderBottom = borderCls(bottomLeft + horizontal.repeat(maxLen + 2 + padding * 2) + bottomRight);
+  const horizontalBar = horizontal.repeat(maxLen + 2 + padding * 2);
+  const borderTop = borderCls(topLeft + horizontalBar + topRight);
+  const borderBottom = borderCls(bottomLeft + horizontalBar + bottomRight);
   
   const paddedLines = lines.map(line => {
     const strippedLen = strip(line).length;
@@ -526,14 +572,14 @@ function wrap(text, width) {
  */
 function asciiArt(text) {
   const lines = [];
-  const fallbackChar = '?';
+  const fallbackChar = '?'; // Fallback character is a good practice
   for (let i = 0; i < 5; i++) {
     let line = '';
     for (let char of text.toUpperCase()) {
       if (asciiFont[char]) {
         line += asciiFont[char][i] + ' ';
       } else {
-        line += ' '.repeat(asciiFont['A'][0].length) + ' '; // Fallback to spaces for a clean output
+        line += ' '.repeat(asciiFont['A'][0].length + 1); // Fallback to spaces for a clean output
       }
     }
     lines.push(line);
@@ -615,11 +661,11 @@ function line(width, text = '') {
   
   const sideWidth = Math.max(0, Math.floor((width - textLen - 2) / 2));
   const sideChars = char.repeat(sideWidth);
-  const fullLine = sideChars + ` ${text} ` + sideChars;
+  let fullLine = sideChars + ` ${text} ` + sideChars;
   
   // Add an extra character if the width is odd
   if (strip(fullLine).length < width) {
-    return fullLine + char;
+    fullLine += char;
   }
   
   return fullLine;
@@ -692,9 +738,9 @@ class Spinner {
    * Starts the spinner animation.
    */
   start() {
-    process.stdout.write(`\x1b[?25l`); // Hide cursor
+    writeToStdout(hideCursor); // Hide cursor
     this.handle = setInterval(() => {
-      process.stdout.write(`\r${this.styleFn(this.frames[this.frameIndex])} ${this.text}`);
+      writeToStdout(`\r${this.styleFn(this.frames[this.frameIndex])} ${this.text}`);
       this.frameIndex = (this.frameIndex + 1) % this.frames.length;
     }, this.interval);
   }
@@ -708,7 +754,7 @@ class Spinner {
   stop(finalChar = '✔', finalText = 'Done!', finalColor = 'green') {
     if (this.handle) {
       clearInterval(this.handle);
-      process.stdout.write(`\r${color[finalColor](finalChar)} ${color[finalColor].bold(finalText)}\x1b[?25h\n`); // Show cursor again and print final line
+      writeToStdout(`\r${color[finalColor](finalChar)} ${color[finalColor].bold(finalText)}${showCursor}\n`); // Show cursor again and print final line
       this.handle = null;
     }
   }
@@ -716,55 +762,61 @@ class Spinner {
 
 /**
  * Creates a text animation (e.g., blinking, fading).
+ * Returns a Promise that resolves when the animation is done.
  * @param {string} text - The text to animate.
  * @param {object} [options] - Animation options.
  * @param {string} [options.effect='blink'] - The animation effect ('blink' or 'pulse').
  * @param {number} [options.interval=500] - The interval for the animation in milliseconds.
  * @param {number} [options.duration=3000] - The total duration of the animation in milliseconds.
+ * @returns {Promise<void>} A Promise that resolves when the animation finishes.
  */
 function animate(text, options = {}) {
-    const { effect = 'blink', interval = 500, duration = 3000 } = options;
-    
-    // Ensure terminal cursor is shown on unexpected exit
-    const restoreCursor = () => {
-        process.stdout.write(`\x1b[?25h`);
-    };
-    
-    process.on('exit', restoreCursor);
-    process.on('SIGINT', restoreCursor);
+    return new Promise((resolve) => {
+        const { effect = 'blink', interval = 500, duration = 3000 } = options;
+        
+        // Ensure terminal cursor is shown on unexpected exit
+        const restoreCursor = () => {
+            writeToStdout(showCursor);
+        };
+        
+        onExit(restoreCursor);
+        writeToStdout(hideCursor);
 
-    if (effect === 'blink') {
-        let isVisible = true;
-        const blinkInterval = setInterval(() => {
-            if (isVisible) {
-                process.stdout.write(`\r${text}`);
-            } else {
-                process.stdout.write(`\r${' '.repeat(strip(text).length)}`);
+        let animationInterval;
+
+        try {
+            if (effect === 'blink') {
+                let isVisible = true;
+                animationInterval = setInterval(() => {
+                    if (isVisible) {
+                        writeToStdout(`\r${text}`);
+                    } else {
+                        writeToStdout(`\r${' '.repeat(strip(text).length)}`);
+                    }
+                    isVisible = !isVisible;
+                }, interval);
+            } else if (effect === 'pulse') {
+                animationInterval = setInterval(() => {
+                    writeToStdout(`\r${color.dim(text)}`);
+                    setTimeout(() => {
+                        writeToStdout(`\r${color.white(text)}`);
+                    }, interval / 2);
+                }, interval);
             }
-            isVisible = !isVisible;
-        }, interval);
+        } catch (e) {
+            clearInterval(animationInterval);
+            writeToStdout(showCursor);
+            resolve();
+            return;
+        }
 
         setTimeout(() => {
-            clearInterval(blinkInterval);
-            process.stdout.write(`\r${text}\n`); // Final state: visible
-            process.removeListener('exit', restoreCursor);
-            process.removeListener('SIGINT', restoreCursor);
+            clearInterval(animationInterval);
+            writeToStdout(`\r${text}\n`); // Final state: visible
+            writeToStdout(showCursor);
+            resolve();
         }, duration);
-    } else if (effect === 'pulse') {
-        const pulseInterval = setInterval(() => {
-            process.stdout.write(`\r${color.dim(text)}`);
-            setTimeout(() => {
-                process.stdout.write(`\r${color.white(text)}`);
-            }, interval / 2);
-        }, interval);
-
-        setTimeout(() => {
-            clearInterval(pulseInterval);
-            process.stdout.write(`\r${text}\n`); // Final state: normal
-            process.removeListener('exit', restoreCursor);
-            process.removeListener('SIGINT', restoreCursor);
-        }, duration);
-    }
+    });
 }
 
 /**
@@ -816,7 +868,7 @@ const log = {
    * @param {string} msg - The message to log.
    */
   debug: (msg) => {
-    if (process.env.DEBUG === 'true') {
+    if ((isDeno && Deno.env.get('DEBUG') === 'true') || (!isDeno && process.env.DEBUG === 'true')) {
       console.log(color.dim(timestamp()) + ' ' + color.dim('🐛 [DEBUG] ') + color.dim(msg));
     }
   }
