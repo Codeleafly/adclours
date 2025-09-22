@@ -774,17 +774,11 @@ function animate(text, options = {}) {
     return new Promise((resolve) => {
         const { effect = 'blink', interval = 500, duration = 3000 } = options;
         
-        // Ensure terminal cursor is shown on unexpected exit
-        const restoreCursor = () => {
-            writeToStdout(showCursor);
-        };
-        
-        onExit(restoreCursor);
-        writeToStdout(hideCursor);
-
         let animationInterval;
-
+        
         try {
+            writeToStdout(hideCursor);
+
             if (effect === 'blink') {
                 let isVisible = true;
                 animationInterval = setInterval(() => {
@@ -803,19 +797,14 @@ function animate(text, options = {}) {
                     }, interval / 2);
                 }, interval);
             }
-        } catch (e) {
-            clearInterval(animationInterval);
-            writeToStdout(showCursor);
-            resolve();
-            return;
+        } finally {
+            setTimeout(() => {
+                clearInterval(animationInterval);
+                writeToStdout(`\r${text}\n`); // Final state: visible
+                writeToStdout(showCursor);
+                resolve();
+            }, duration);
         }
-
-        setTimeout(() => {
-            clearInterval(animationInterval);
-            writeToStdout(`\r${text}\n`); // Final state: visible
-            writeToStdout(showCursor);
-            resolve();
-        }, duration);
     });
 }
 
@@ -861,7 +850,7 @@ const log = {
    * @param {string} msg - The message to log.
    */
   error: (msg) => {
-    console.error(color.dim(timestamp()) + ' ' + color.red('✖ ') + color.red.bold(msg));
+    console.log(color.dim(timestamp()) + ' ' + color.red('✖ ') + color.red.bold(msg));
   },
   /**
    * Prints a debug message (only if debug mode is enabled).
